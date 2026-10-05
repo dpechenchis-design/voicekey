@@ -85,6 +85,30 @@ def play(sound: str) -> None:
         pass
 
 
+def press_paste_shortcut() -> None:
+    """Cmd+V (Mac) / Ctrl+V (Windows) using the physical V key, whatever the layout.
+
+    On macOS pynput's Controller looks up the keyboard layout, which crashes the app
+    when done off the main thread, so post the key events through Quartz instead.
+    """
+    if IS_MAC:
+        from Quartz import (
+            CGEventCreateKeyboardEvent, CGEventPost, CGEventSetFlags,
+            kCGEventFlagMaskCommand, kCGHIDEventTap,
+        )
+
+        for down in (True, False):
+            event = CGEventCreateKeyboardEvent(None, 0x09, down)  # 0x09 = V
+            CGEventSetFlags(event, kCGEventFlagMaskCommand)
+            CGEventPost(kCGHIDEventTap, event)
+    else:
+        kb = keyboard.Controller()
+        v_key = keyboard.KeyCode.from_vk(0x56)
+        with kb.pressed(keyboard.Key.ctrl):
+            kb.press(v_key)
+            kb.release(v_key)
+
+
 def paste_text(text: str) -> None:
     """Put text on the clipboard, press Cmd/Ctrl+V, then restore the old clipboard."""
     try:
@@ -93,12 +117,7 @@ def paste_text(text: str) -> None:
         old = None
     pyperclip.copy(text)
     time.sleep(0.05)
-    kb = keyboard.Controller()
-    mod = keyboard.Key.cmd if IS_MAC else keyboard.Key.ctrl
-    v_key = keyboard.KeyCode.from_vk(0x09 if IS_MAC else 0x56)  # physical V, any layout
-    with kb.pressed(mod):
-        kb.press(v_key)
-        kb.release(v_key)
+    press_paste_shortcut()
     time.sleep(0.25)  # let the target app read the clipboard before restoring
     if old is not None:
         pyperclip.copy(old)
