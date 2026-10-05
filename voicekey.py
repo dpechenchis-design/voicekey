@@ -55,6 +55,18 @@ def save_config(cfg: dict) -> None:
 
 
 # ---------- platform bits ----------
+LOG_PATH = CONFIG_PATH.parent / "app.log"
+
+
+def log(msg: str) -> None:
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_PATH, "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
+
+
 def play(sound: str) -> None:
     """sound: 'start' or 'stop'."""
     try:
@@ -112,14 +124,17 @@ def check_permissions(prompt: bool) -> list[str]:
         from ApplicationServices import AXIsProcessTrustedWithOptions, kAXTrustedCheckOptionPrompt
         from Quartz import CGPreflightListenEventAccess, CGRequestListenEventAccess
 
-        if not AXIsProcessTrustedWithOptions({kAXTrustedCheckOptionPrompt: prompt}):
+        ax = bool(AXIsProcessTrustedWithOptions({kAXTrustedCheckOptionPrompt: prompt}))
+        listen = bool(CGPreflightListenEventAccess())
+        log(f"permissions: accessibility={ax} input_monitoring={listen} prompt={prompt} exe={sys.executable}")
+        if not ax:
             missing.append("Accessibility")
-        if not CGPreflightListenEventAccess():
+        if not listen:
             if prompt:
                 CGRequestListenEventAccess()
             missing.append("Input Monitoring")
-    except Exception:
-        pass
+    except Exception as e:
+        log(f"permission check failed: {e!r}")
     return missing
 
 
@@ -219,8 +234,13 @@ class App:
             pystray.MenuItem(lambda item: self.status, None, enabled=False),
             pystray.MenuItem("Language", radio(LANGUAGES, "lang")),
             pystray.MenuItem("Hold-to-talk key", radio(KEYS, "key")),
+            pystray.MenuItem("Re-check permissions", self._recheck),
             pystray.MenuItem("Quit", lambda icon, item: icon.stop()),
         )
+
+    def _recheck(self, icon, item):
+        self.missing = check_permissions(prompt=False)
+        self.set_status(self.ready_text())
 
     def _setter(self, field, value):
         def set_value(icon, item):
@@ -259,6 +279,7 @@ class App:
         return key == getattr(keyboard.Key, self.cfg["key"], None)
 
     def on_press(self, key):
+        log(f"key press: {key} hotkey={self.cfg['key']} match={self.is_hotkey(key)}")
         if self.is_hotkey(key) and not self.recording and not self.busy:
             try:
                 self.recorder.start()
