@@ -16,10 +16,10 @@ PLIST=$BUILD/dist/VoiceKey.app/Contents/Info.plist
 DR='designated => identifier "com.voicekey.app"'
 codesign --force --deep --sign - $BUILD/dist/VoiceKey.app
 # iCloud (Desktop/Documents) adds xattrs that invalidate the signature, so install a clean copy.
-mkdir -p ~/Applications && rm -rf ~/Applications/VoiceKey.app
-ditto --norsrc --noextattr --noqtn $BUILD/dist/VoiceKey.app ~/Applications/VoiceKey.app
-xattr -cr ~/Applications/VoiceKey.app
-codesign --force --deep --sign - ~/Applications/VoiceKey.app
+mkdir -p /Applications && rm -rf /Applications/VoiceKey.app
+ditto --norsrc --noextattr --noqtn $BUILD/dist/VoiceKey.app /Applications/VoiceKey.app
+xattr -cr /Applications/VoiceKey.app
+codesign --force --deep --sign - /Applications/VoiceKey.app
 # top-level only (no --deep): keeps nested libraries valid, makes the app match by identifier
-codesign --force --sign - -r="$DR" ~/Applications/VoiceKey.app
-echo "Built $BUILD/dist/VoiceKey.app and installed ~/Applications/VoiceKey.app"
+codesign --force --sign - -r="$DR" /Applications/VoiceKey.app
+echo "Built $BUILD/dist/VoiceKey.app and installed /Applications/VoiceKey.app"

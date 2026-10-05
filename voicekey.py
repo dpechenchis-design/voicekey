@@ -95,9 +95,10 @@ def paste_text(text: str) -> None:
     time.sleep(0.05)
     kb = keyboard.Controller()
     mod = keyboard.Key.cmd if IS_MAC else keyboard.Key.ctrl
+    v_key = keyboard.KeyCode.from_vk(0x09 if IS_MAC else 0x56)  # physical V, any layout
     with kb.pressed(mod):
-        kb.press("v")
-        kb.release("v")
+        kb.press(v_key)
+        kb.release(v_key)
     time.sleep(0.25)  # let the target app read the clipboard before restoring
     if old is not None:
         pyperclip.copy(old)
@@ -279,7 +280,8 @@ class App:
         return key == getattr(keyboard.Key, self.cfg["key"], None)
 
     def on_press(self, key):
-        log(f"key press: {key} hotkey={self.cfg['key']} match={self.is_hotkey(key)}")
+        if self.is_hotkey(key):
+            log("hotkey pressed")
         if self.is_hotkey(key) and not self.recording and not self.busy:
             try:
                 self.recorder.start()
@@ -304,8 +306,8 @@ class App:
                 return
             self.set_status("Transcribing...", "#f9a825")
             text = self.transcriber(audio, self.cfg["lang"])
+            log(f"transcribed {len(text)} chars")
             if text:
-                print(text)
                 paste_text(text + " ")
         except Exception as e:
             print(f"error: {e}")
